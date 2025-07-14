@@ -10,27 +10,50 @@ class AuthController extends Controller
     // Login method to authenticate users
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        try {
+            $credentials = $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
 
-        if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Login gagal'], 401);
+            if (!Auth::attempt($credentials)) {
+                return response()->json(['message' => 'Email atau password salah'], 401);
+            }
+
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            $token = $user->createToken('api-token')->plainTextToken;
+
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat login.',
+                'error' => $e->getMessage(), // Untuk debug. Hapus di produksi
+            ], 500);
         }
+    }
 
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-        $token = $user->createToken('api-token')->plainTextToken;
+    // Logout method to revoke current token
+    public function logout(Request $request)
+    {
+        // Revoke the current user's token
+        $request->user()->currentAccessToken()->delete();
+
         return response()->json([
-            'user' => $user,
-            'token' => $token,
+            'message' => 'Logout berhasil',
+            'status' => 'success'
         ]);
     }
 
-     public function logout(Request $request)
+    // Get current authenticated user
+    public function me(Request $request)
     {
-        $request->user()->tokens()->delete(); // menghapus semua token aktif
-        return response()->json(['message' => 'Logout berhasil']);
+        return response()->json([
+            'user' => $request->user(),
+            'status' => 'success'
+        ]);
     }
 }
